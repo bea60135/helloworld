@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Viewer</title>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; background: #e2e8f0; font-family: sans-serif; margin: 0; padding: calc(5mm + 12px) 12px 12px 20px; box-sizing: border-box; }
+    #masterContentCard { background: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; max-width: 600px; box-sizing: border-box; display: none; flex-direction: column; position: relative; }
+    .inner-stack-container { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+    .stack-item { width: 100%; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+    .stack-item:not(:first-child) { padding-top: 8px; margin-top: 4px; }
+    img, video { max-width: 100%; max-height: 80vh; width: auto; height: auto; object-fit: contain; border-radius: 4px; }
+    audio { width: 100%; outline: none; }
+    .text-box-render { width: 100%; border-left: 5px solid #6f42c1; padding: 12px; white-space: pre-wrap; font-size: 16px; line-height: 1.5; color: #24292e; background: #f8f9fa; border-radius: 0 4px 4px 0; box-sizing: border-box; }
+    #error-state { font-size: 72px; color: #dc3545; display: none; text-align: center; margin-top: 40px; }
+    #loading-spinner { display: block; width: 50px; height: 50px; border: 6px solid #e1e4e8; border-top: 6px solid #0366d6; border-radius: 50%; animation: spin 1s linear infinite; margin-top: 40px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .scroller-guide-track {
+      position: fixed; left: 4px; top: 0; width: 12px; height: 100vh;
+      display: none; flex-direction: column;
+      justify-content: space-around; align-items: center; pointer-events: none; z-index: 9999;
+    }
+    .indicator-arrow {
+      color: #ff69b4; font-size: 20px; font-weight: 900;
+      animation: pulseBounce 1.6s infinite ease-in-out; opacity: 0.8;
+    }
+    @keyframes pulseBounce {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+      50% { transform: translateY(6px) scale(1.2); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-spinner"></div> <div id="error-state">☹</div>
+  
+  <div class="scroller-guide-track" id="scrollTrack">
+    <div class="indicator-arrow">↓</div> <div class="indicator-arrow">↓</div>
+    <div class="indicator-arrow">↓</div> <div class="indicator-arrow">↓</div>
+    <div class="indicator-arrow">↓</div> <div class="indicator-arrow">↓</div>
+  </div>
+
+  <div id="masterContentCard"> <div class="inner-stack-container" id="cardStackTarget"></div> </div>
+
+
+
+
+
+
+
+
+
+
+  <script>
+     const payloadItems = [{"mediaType":"text","mime":"text/plain","base64Data":"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"}];
+    const shouldMuteVideo = true;
+    const shouldBlockAudioDl = true;
+    const isMultiItem = false;
+
+    function hideSpinner() { 
+      const spinner = document.getElementById('loading-spinner'); 
+      if (spinner) spinner.style.display = 'none'; 
+    }
+    
+    window.addEventListener('DOMContentLoaded', async () => {
+      const savedPassword = localStorage.getItem('msg_decryption_key');
+      if (savedPassword) { 
+        await decryptAllItems(savedPassword); 
+      } else { 
+        hideSpinner(); 
+        document.getElementById('error-state').style.display='block'; 
+      }
+    });
+
+    function evaluateScrollIndicators() {
+      if (!isMultiItem) return;
+      const track = document.getElementById('scrollTrack');
+      if (!track) return;
+      
+      const hasOverflow = document.documentElement.scrollHeight > window.innerHeight;
+      track.style.display = hasOverflow ? 'flex' : 'none';
+    }
+
+    window.addEventListener('resize', evaluateScrollIndicators);
+
+    async function decryptAllItems(password) {
+      try {
+        const stackTarget = document.getElementById('cardStackTarget');
+        for(let i = 0; i < payloadItems.length; i++) {
+          const entry = payloadItems[i]; 
+          const binaryStr = atob(entry.base64Data); 
+          const encryptedData = new Uint8Array(binaryStr.length);
+          for (let j = 0; j < binaryStr.length; j++) { 
+            encryptedData[j] = binaryStr.charCodeAt(j); 
+          }
+          const salt = encryptedData.subarray(0, 16); 
+          const iv = encryptedData.subarray(16, 28); 
+          const rawBytes = encryptedData.subarray(28);
+          const enc = new TextEncoder();
+          const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), {name: "PBKDF2"}, false, ["deriveKey"]);
+          const key = await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+          const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, rawBytes);
+          const itemWrapper = document.createElement('div'); 
+          itemWrapper.className = 'stack-item';
+          
+          if (entry.mediaType === 'text') {
+            const textEl = document.createElement('div'); 
+            textEl.className = 'text-box-render'; 
+            textEl.innerText = new TextDecoder().decode(decrypted); 
+            itemWrapper.appendChild(textEl);
+          } else {
+            const blob = new Blob([decrypted], { type: entry.mime });
+            const dataUrl = await new Promise((res) => { 
+              const r = new FileReader(); 
+              r.onload = (e) => res(e.target.result); 
+              r.readAsDataURL(blob); 
+            });
+            if (entry.mediaType === 'audio') {
+              const audio = document.createElement('audio'); 
+              audio.controls = true; 
+              audio.src = dataUrl; 
+              if (shouldBlockAudioDl) { 
+                audio.setAttribute('controlsList', 'nodownload'); 
+              }
+              itemWrapper.appendChild(audio);
+            } else if (entry.mediaType === 'video') {
+              const video = document.createElement('video'); 
+              video.controls = true; 
+              video.src = dataUrl; 
+              if (shouldMuteVideo) { 
+                video.muted = true; 
+                video.setAttribute('muted', ''); 
+              } 
+              itemWrapper.appendChild(video);
+            } else {
+              const img = document.createElement('img'); 
+              img.src = dataUrl; 
+              img.onload = evaluateScrollIndicators;
+              itemWrapper.appendChild(img);
+            }
+          }
+          stackTarget.appendChild(itemWrapper);
+        }
+        hideSpinner(); 
+        document.getElementById('masterContentCard').style.display = 'flex';
+        setTimeout(evaluateScrollIndicators, 50);
+      } catch (e) { 
+        console.error(e); 
+        hideSpinner(); 
+        document.getElementById('error-state').style.display='block'; 
+      }
+    }
+  </script>
+</body>
+</html>
